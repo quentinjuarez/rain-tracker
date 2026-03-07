@@ -67,7 +67,82 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
-// ── Generic routes  ────────────────────────────────────
+// ── Weather proxy (Open-Meteo) ─────────────────────────────────────
+
+app.get('/weather', async (req, res) => {
+  const { lat, lon } = req.query;
+  if (!lat || !lon) {
+    return res
+      .status(400)
+      .json({ error: 'lat and lon query params are required' });
+  }
+
+  const cacheKey = `weather:${Number(lat).toFixed(2)}:${Number(lon).toFixed(2)}`;
+  const cached = getCache(cacheKey);
+  if (cached) return res.json(cached);
+
+  try {
+    const url =
+      `https://api.open-meteo.com/v1/forecast` +
+      `?latitude=${lat}&longitude=${lon}` +
+      `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m` +
+      `&wind_speed_unit=ms&timezone=auto`;
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Open-Meteo error: ${response.status}`);
+    const data = await response.json();
+
+    setCache(cacheKey, data, 300); // 5 min TTL
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch weather data' });
+  }
+});
+
+// ── Reverse geocoding proxy (Nominatim) ────────────────────────────
+
+app.get('/geocode', async (req, res) => {
+  const { lat, lon } = req.query;
+  if (!lat || !lon) {
+    return res
+      .status(400)
+      .json({ error: 'lat and lon query params are required' });
+  }
+
+  const cacheKey = `geocode:${Number(lat).toFixed(2)}:${Number(lon).toFixed(2)}`;
+  const cached = getCache(cacheKey);
+  if (cached) return res.json(cached);
+
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/reverse` +
+      `?lat=${lat}&lon=${lon}&format=json&zoom=10&addressdetails=1`;
+
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'rain-tracker/1.0' },
+    });
+    if (!response.ok) throw new Error(`Nominatim error: ${response.status}`);
+    const data = await response.json();
+
+    const payload = {
+      city:
+        data.address?.city ||
+        data.address?.town ||
+        data.address?.village ||
+        data.address?.county ||
+        data.display_name?.split(',')[0] ||
+        'Unknown',
+      country: data.address?.country_code?.toUpperCase() ?? '',
+    };
+
+    setCache(cacheKey, payload, 3600); // 1 h TTL
+    res.json(payload);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch location name' });
+  }
+});
 
 // ── 404 handler ────────────────────────────────────────────────────
 
