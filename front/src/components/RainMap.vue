@@ -11,6 +11,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useProfileStore } from '../stores/profile';
 import { useRainSync } from '../composables/useRainSync';
+import { mmToRgb } from '../utils/rainScale';
+import { buildMockMapFrames, type MockMapFrame } from '../utils/mockWeather';
 
 type RadarFrame = { time: number; path: string };
 
@@ -23,80 +25,108 @@ let rainLayer: L.TileLayer | null = null;
 
 const frames = ref<RadarFrame[]>([]);
 
+// ── Canvas rain renderer ──────────────────────────────────────────────
+
+type RainCell = { lat: number; lon: number; radius: number; mm: number };
+
+class RainCanvasLayer extends L.Layer {
+  private _canvas: HTMLCanvasElement | null = null;
+  private _cells: RainCell[] = [];
+  private _mapRef: L.Map | null = null;
+
+  onAdd(map: L.Map): this {
+    this._mapRef = map;
+    this._canvas = document.createElement('canvas');
+    this._canvas.style.cssText =
+      'position:absolute;top:0;left:0;pointer-events:none;';
+    map.getPanes().overlayPane!.appendChild(this._canvas);
+    map.on('moveend zoomend viewreset resize', this._redraw, this);
+    this._redraw();
+    return this;
+  }
+
+  onRemove(map: L.Map): this {
+    this._canvas?.remove();
+    this._canvas = null;
+    this._mapRef = null;
+    map.off('moveend zoomend viewreset resize', this._redraw, this);
+    return this;
+  }
+
+  update(cells: RainCell[]) {
+    this._cells = cells;
+    this._redraw();
+  }
+
+  clear() {
+    this._cells = [];
+    this._redraw();
+  }
+
+  private _metersToPixels(map: L.Map, meters: number, lat: number): number {
+    const p1 = map.latLngToLayerPoint([lat, 0]);
+    const p2 = map.latLngToLayerPoint([lat, 0.01]);
+    const degLen = Math.abs(p2.x - p1.x);
+    const metersPer001Deg = 0.01 * Math.cos((lat * Math.PI) / 180) * 111_320;
+    return (meters / metersPer001Deg) * degLen;
+  }
+
+  private _redraw() {
+    const map = this._mapRef;
+    const canvas = this._canvas;
+    if (!map || !canvas) return;
+
+    const size = map.getSize();
+    canvas.width = size.x;
+    canvas.height = size.y;
+
+    const origin = map.containerPointToLayerPoint([0, 0]);
+    L.DomUtil.setPosition(canvas, origin);
+
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, size.x, size.y);
+
+    for (const cell of this._cells) {
+      const pt = map.latLngToLayerPoint([cell.lat, cell.lon]);
+      const rpx = this._metersToPixels(map, cell.radius, cell.lat);
+      const [r, g, b] = mmToRgb(cell.mm);
+      const alpha = Math.min(0.72, 0.12 + cell.mm / 14);
+
+      const grad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, rpx);
+      grad.addColorStop(0, `rgba(${r},${g},${b},${alpha.toFixed(3)})`);
+      grad.addColorStop(
+        0.45,
+        `rgba(${r},${g},${b},${(alpha * 0.55).toFixed(3)})`,
+      );
+      grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, rpx, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+  }
+}
+
 // ── DEV mock ─────────────────────────────────────────────────────────
 
-type MockFrame = {
-  time: number;
-  cells: { dlat: number; dlon: number; radius: number; mm: number }[];
-};
-let mockFrames: MockFrame[] = [];
-let mockCircles: L.Circle[] = [];
-
-// Wind direction: cells drift ~NE at ~30km/h → ~0.008° lat/frame, ~0.010° lon/frame (10-min frames)
-const DRIFT_LAT = 0.008;
-const DRIFT_LON = 0.01;
-
-function buildMockFrames(lat: number, lon: number) {
-  // 3 rain cells at t=0, each frame shifts them by the drift vector
-  const baseCells = [
-    { dlat: -0.04, dlon: -0.03, radius: 5500, mm: 6.2 },
-    { dlat: 0.0, dlon: 0.04, radius: 3800, mm: 2.8 },
-    { dlat: -0.02, dlon: 0.01, radius: 2800, mm: 1.1 },
-    { dlat: 0.03, dlon: -0.01, radius: 4200, mm: 4.5 },
-  ];
-  const now = Math.floor(Date.now() / 1000);
-  // 12 frames: 6 past (every 10 min) + 6 future
-  mockFrames = Array.from({ length: 12 }, (_, i) => {
-    const offset = i - 6; // -6 .. +5
-    return {
-      time: now + offset * 600,
-      cells: baseCells.map(({ dlat, dlon, radius, mm }) => ({
-        dlat: dlat + offset * DRIFT_LAT,
-        dlon: dlon + offset * DRIFT_LON,
-        radius,
-        // Intensity fades slightly toward edges of the time window
-        mm: mm * Math.max(0.3, 1 - Math.abs(offset) * 0.06),
-      })),
-    };
-  });
-  void lat;
-  void lon;
-}
-
-function clearMockCircles() {
-  mockCircles.forEach((c) => map?.removeLayer(c));
-  mockCircles = [];
-}
+let mockFrames: MockMapFrame[] = [];
+let canvasLayer: RainCanvasLayer | null = null;
 
 function showMockFrame(index: number) {
-  if (!map) return;
-  clearMockCircles();
+  if (!canvasLayer) return;
   const pos = store.position;
   if (!pos) return;
   const f = mockFrames[index];
   if (!f) return;
-  f.cells.forEach(({ dlat, dlon, radius, mm }) => {
-    const color =
-      mm < 0.5
-        ? '#93c5fd'
-        : mm < 2
-          ? '#3b82f6'
-          : mm < 5
-            ? '#06b6d4'
-            : mm < 10
-              ? '#eab308'
-              : '#f97316';
-    const opacity = Math.min(0.75, 0.15 + mm / 14);
-    const c = L.circle([pos.lat + dlat, pos.lon + dlon], {
+  canvasLayer.update(
+    f.cells.map(({ dlat, dlon, radius, mm }) => ({
+      lat: pos.lat + dlat,
+      lon: pos.lon + dlon,
       radius,
-      color,
-      fillColor: color,
-      fillOpacity: opacity,
-      opacity: opacity * 0.35,
-      weight: 1,
-    }).addTo(map!);
-    mockCircles.push(c);
-  });
+      mm,
+    })),
+  );
 }
 
 // ── RainViewer ───────────────────────────────────────────────────────
@@ -105,7 +135,7 @@ async function loadFrames() {
   if (devMode.value) {
     const pos = store.position;
     if (!pos) return;
-    buildMockFrames(pos.lat, pos.lon);
+    mockFrames = buildMockMapFrames();
     frames.value = mockFrames.map((f) => ({ time: f.time, path: '' }));
     showMockFrame(activeIndex.value);
     return;
@@ -162,7 +192,7 @@ watch(activeIndex, (i) => {
 
 // Reload when dev mode is toggled from the RainTimeline DEV button
 watch(devMode, () => {
-  clearMockCircles();
+  canvasLayer?.clear();
   if (rainLayer && map) {
     map.removeLayer(rainLayer);
     rainLayer = null;
@@ -200,6 +230,9 @@ function initMap(lat: number, lon: number) {
     zIndexOffset: 100,
   }).addTo(map);
 
+  canvasLayer = new RainCanvasLayer();
+  canvasLayer.addTo(map);
+
   loadFrames();
 }
 
@@ -221,7 +254,6 @@ watch(
 
 onBeforeUnmount(() => {
   dispose();
-  clearMockCircles();
   if (map) {
     map.remove();
     map = null;

@@ -101,6 +101,26 @@
         </span>
       </div>
     </div>
+
+    <!-- Rain scale legend -->
+    <div class="flex flex-col gap-1 pt-1 border-t border-white/8">
+      <div class="flex h-1.5 rounded-full overflow-hidden">
+        <div
+          v-for="band in rainScale"
+          :key="band.threshold"
+          class="flex-1"
+          :style="{ background: band.color }"
+        />
+      </div>
+      <div class="flex justify-between px-0.5">
+        <span
+          v-for="band in rainScale"
+          :key="band.threshold"
+          class="text-[8px] font-mono text-white/30"
+          >{{ band.label }}</span
+        >
+      </div>
+    </div>
   </div>
 </template>
 
@@ -108,6 +128,11 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useProfileStore } from '../stores/profile';
 import { useRainSync } from '../composables/useRainSync';
+import { mmToColor, RAIN_SCALE } from '../utils/rainScale';
+import { buildMockHourEntries } from '../utils/mockWeather';
+
+// alias so Vue template analyzer and Pylance both see it used
+const rainScale = RAIN_SCALE;
 
 const store = useProfileStore();
 const isDev = import.meta.env.DEV; // compile-time, controls DEV button visibility
@@ -127,50 +152,11 @@ const lastUpdated = ref('');
 
 let fetchTimer: ReturnType<typeof setInterval> | null = null;
 
-// ── Colors ───────────────────────────────────────────────────────────
-
-function precipColor(mm: number, prob: number): string {
-  if (mm < 0.1 && prob < 20) return 'rgba(148,163,184,0.5)';
-  if (mm < 0.5) return '#93c5fd';
-  if (mm < 1.5) return '#60a5fa';
-  if (mm < 4) return '#3b82f6';
-  if (mm < 8) return '#06b6d4';
-  if (mm < 15) return '#eab308';
-  return '#f97316';
-}
-
-// ── Mock data ────────────────────────────────────────────────────────
-
-function mockHours(): HourEntry[] {
-  // Simulates a rain event arriving in 2h, peaking, then fading
-  const pattern = [0, 0, 0.2, 0.8, 2.4, 5.1, 8.3, 4.7, 2.1, 0.6, 0.1, 0];
-  const probPattern = [5, 10, 25, 50, 75, 90, 95, 85, 65, 40, 15, 5];
-  const nowMs = Date.now();
-  // Round to next hour
-  const base = new Date(nowMs);
-  base.setMinutes(0, 0, 0);
-  base.setHours(base.getHours() + 1);
-  return pattern.map((mm, i) => {
-    const t = base.getTime() + i * 3_600_000;
-    const p = probPattern[i] ?? 0;
-    return {
-      time: t,
-      label: new Date(t).toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      probability: p,
-      precipitation: mm,
-      color: precipColor(mm, p),
-    };
-  });
-}
-
 // ── Fetch ────────────────────────────────────────────────────────────
 
 async function fetchHours() {
   if (devMode.value) {
-    hours.value = mockHours();
+    hours.value = buildMockHourEntries();
     if (activeIndex.value >= hours.value.length) activeIndex.value = 0;
     lastUpdated.value = 'DEV';
     return;
@@ -208,7 +194,7 @@ async function fetchHours() {
         }),
         probability: p,
         precipitation: mm,
-        color: precipColor(mm, p),
+        color: mmToColor(mm),
       });
     }
 
