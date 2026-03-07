@@ -2,70 +2,6 @@
   <div class="relative w-full h-full">
     <!-- Leaflet map container -->
     <div ref="mapEl" class="absolute inset-0" />
-
-    <!-- Radar controls -->
-    <div
-      v-if="frames.length"
-      class="absolute bottom-28 left-1/2 -translate-x-1/2 z-1000 flex flex-col items-center gap-2 px-4 py-3 rounded-2xl bg-gray-900/80 backdrop-blur-sm border border-white/10 min-w-72 max-w-sm w-full"
-    >
-      <!-- Header row -->
-      <div
-        class="flex items-center justify-between w-full text-xs text-white/70"
-      >
-        <div class="flex items-center gap-1.5">
-          <span class="inline-block w-1.5 h-1.5 rounded-full bg-blue-400" />
-          <span class="font-semibold uppercase tracking-wider text-[10px]"
-            >Radar pluie</span
-          >
-        </div>
-        <span class="font-mono text-[11px]">{{ currentLabel }}</span>
-      </div>
-
-      <!-- Timeline slider -->
-      <div class="relative w-full flex items-center gap-2">
-        <button
-          class="shrink-0 w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 transition flex items-center justify-center text-white"
-          @click="togglePlay"
-          :title="playing ? 'Pause' : 'Play'"
-        >
-          <svg
-            v-if="!playing"
-            class="w-3.5 h-3.5 ml-0.5"
-            fill="currentColor"
-            viewBox="0 0 16 16"
-          >
-            <path d="M3 2.5v11L13 8z" />
-          </svg>
-          <svg
-            v-else
-            class="w-3.5 h-3.5"
-            fill="currentColor"
-            viewBox="0 0 16 16"
-          >
-            <rect x="3" y="2" width="3.5" height="12" rx="1" />
-            <rect x="9.5" y="2" width="3.5" height="12" rx="1" />
-          </svg>
-        </button>
-        <input
-          type="range"
-          class="w-full flex-1 accent-blue-400"
-          :min="0"
-          :max="frames.length - 1"
-          :value="currentIndex"
-          @input="onScrub"
-        />
-      </div>
-
-      <!-- Frame dots -->
-      <div class="flex gap-0.5 w-full">
-        <div
-          v-for="(f, i) in frames"
-          :key="f.time"
-          class="h-1 flex-1 rounded-full transition-all"
-          :class="i === currentIndex ? 'bg-blue-400' : 'bg-white/25'"
-        />
-      </div>
-    </div>
   </div>
 </template>
 
@@ -160,15 +96,6 @@ function togglePlay() {
   } else {
     if (playTimer) clearInterval(playTimer);
   }
-}
-
-function onScrub(e: Event) {
-  if (playing.value) {
-    playing.value = false;
-    if (playTimer) clearInterval(playTimer);
-  }
-  currentIndex.value = Number((e.target as HTMLInputElement).value);
-  showFrame(currentIndex.value);
 }
 
 // ── Map init ─────────────────────────────────────────────────────────
