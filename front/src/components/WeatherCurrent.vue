@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex flex-col gap-3 p-4 w-[min(280px,90vw)] rounded-2xl border border-white/8 bg-black/60 backdrop-blur-2xl"
+    class="flex flex-col gap-3 p-4 w-[min(280px,90vw)] rounded-2xl border border-white/8 backdrop-blur"
   >
     <!-- Loading skeleton -->
     <template v-if="loading && !weather">

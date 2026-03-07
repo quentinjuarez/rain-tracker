@@ -1,8 +1,6 @@
 <template>
   <div class="w-full px-4 pb-4">
-    <div
-      class="rounded-2xl border border-white/8 bg-black/60 backdrop-blur-2xl px-4 py-3"
-    >
+    <div class="rounded-2xl border border-white/8 backdrop-blur px-4 py-3">
       <!-- Loading skeleton -->
       <div v-if="loading && !weather" class="flex gap-3">
         <div

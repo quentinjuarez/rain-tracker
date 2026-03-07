@@ -21,7 +21,11 @@
       </div>
       <!-- 48h forecast — bottom full width -->
       <div class="absolute bottom-0 left-0 right-0 z-1000">
-        <!-- <WeatherForecast /> -->
+        <WeatherForecast />
+      </div>
+      <!-- Rain timeline — top left -->
+      <div class="absolute top-4 left-4 z-1000">
+        <RainTimeline />
       </div>
     </template>
   </div>
@@ -34,6 +38,7 @@ import OnboardingScreen from '../components/OnboardingScreen.vue';
 import WeatherCurrent from '../components/WeatherCurrent.vue';
 import WeatherForecast from '../components/WeatherForecast.vue';
 import RainMap from '../components/RainMap.vue';
+import RainTimeline from '../components/RainTimeline.vue';
 
 const store = useProfileStore();
 const hasPosition = computed(() => store.hasPosition);
