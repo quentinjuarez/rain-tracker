@@ -1,0 +1,16 @@
+{
+  "name": "rain-tracker",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "yarn workspace rain-tracker-front dev & yarn workspace rain-tracker-back dev",
+    "dev:frontend": "yarn workspace rain-tracker-front dev",
+    "dev:backend": "yarn workspace rain-tracker-back dev"
+  },
+  "packageManager": "yarn@3.8.6",
+  "workspaces": [
+    "./front",
+    "./back"
+  ]
+}
