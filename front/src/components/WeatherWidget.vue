@@ -3,22 +3,22 @@
     <!-- Loading skeleton -->
     <div
       v-if="loading && !weather"
-      class="flex flex-col gap-3 p-7 border border-led/10 rounded-2xl w-[min(360px,90vw)]"
+      class="flex flex-col gap-3 p-7 border border-primary/10 rounded-2xl w-[min(360px,90vw)]"
     >
-      <div class="h-16 w-3/5 rounded-lg bg-led/20 animate-pulse" />
-      <div class="h-5 w-2/5 rounded-lg bg-led/20 animate-pulse" />
-      <div class="h-10 w-full rounded-lg bg-led/20 animate-pulse" />
+      <div class="h-16 w-3/5 rounded-lg bg-primary/20 animate-pulse" />
+      <div class="h-5 w-2/5 rounded-lg bg-primary/20 animate-pulse" />
+      <div class="h-10 w-full rounded-lg bg-primary/20 animate-pulse" />
     </div>
 
     <!-- Data card -->
     <div
       v-else-if="weather"
-      class="flex flex-col gap-4 p-7 border border-led/20 rounded-2xl bg-led/5 backdrop-blur-md w-[min(360px,90vw)] shadow-[0_8px_32px_color-mix(in_srgb,var(--color-led)_8%,transparent)]"
+      class="flex flex-col gap-4 p-7 border border-primary/20 rounded-2xl bg-primary/5 backdrop-blur-md w-[min(360px,90vw)] shadow-[0_8px_32px_color-mix(in_srgb,var(--color-primary)_8%,transparent)]"
     >
       <!-- Header -->
       <div class="flex items-center justify-between">
         <div
-          class="flex items-center gap-1.5 text-xs text-led/70 tracking-wide"
+          class="flex items-center gap-1.5 text-xs text-primary/70 tracking-wide"
         >
           <span class="text-base">⌖</span>
           <span class="flex items-center gap-1.5">
@@ -32,7 +32,7 @@
           </span>
         </div>
         <button
-          class="text-led/50 hover:text-led disabled:opacity-30 transition-opacity text-lg leading-none px-1 cursor-pointer"
+          class="text-primary/50 hover:text-primary disabled:opacity-30 transition-opacity text-lg leading-none px-1 cursor-pointer"
           :disabled="loading"
           title="Refresh"
           @click="refresh"
@@ -50,40 +50,65 @@
           {{ conditionIcon }}
         </span>
         <div class="flex items-start leading-none">
-          <span class="text-7xl font-bold tracking-tight text-led">
+          <span class="text-7xl font-bold tracking-tight text-primary">
             {{ Math.round(weather.current.temperature_2m) }}
           </span>
-          <span class="text-2xl mt-1.5 text-led/60">
+          <span class="text-2xl mt-1.5 text-primary/60">
             {{ weather.current_units.temperature_2m }}
           </span>
         </div>
       </div>
 
       <!-- Condition label -->
-      <p class="text-sm uppercase tracking-widest text-led/50 -mt-2">
+      <p class="text-sm uppercase tracking-widest text-primary/50 -mt-2">
         {{ conditionLabel }}
       </p>
 
       <!-- Stats -->
-      <div class="grid grid-cols-3 gap-2 pt-2 border-t border-led/10">
+      <div class="grid grid-cols-3 gap-2 pt-2 border-t border-primary/10">
         <div
           v-for="stat in stats"
           :key="stat.label"
-          class="flex flex-col items-center gap-0.5 py-2.5 px-1 rounded-xl bg-led/5"
+          class="flex flex-col items-center gap-0.5 py-2.5 px-1 rounded-xl bg-primary/5"
         >
           <span class="text-base">{{ stat.icon }}</span>
-          <span class="text-sm font-semibold text-led">{{ stat.value }}</span>
-          <span class="text-[10px] uppercase tracking-widest text-led/40">{{
+          <span class="text-sm font-semibold text-primary">{{
+            stat.value
+          }}</span>
+          <span class="text-[10px] uppercase tracking-widest text-primary/40">{{
             stat.label
           }}</span>
         </div>
       </div>
 
+      <!-- 48h forecast strip -->
+      <div class="flex flex-col gap-2 pt-2 border-t border-primary/10">
+        <p class="text-[10px] uppercase tracking-widest text-primary/40">
+          48h forecast
+        </p>
+        <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+          <div
+            v-for="slot in forecast48"
+            :key="slot.time"
+            class="flex flex-col items-center gap-1 min-w-[52px] py-2 px-1 rounded-xl bg-primary/5 shrink-0"
+          >
+            <span class="text-[10px] text-primary/50 tabular-nums">{{
+              slot.hour
+            }}</span>
+            <span class="text-lg leading-none">{{ slot.icon }}</span>
+            <span class="text-xs font-semibold text-primary"
+              >{{ slot.temp }}°</span
+            >
+            <span class="text-[10px] text-primary/40">{{ slot.precip }}%</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Footer -->
       <div
-        class="flex items-center justify-between pt-1 border-t border-led/10"
+        class="flex items-center justify-between pt-1 border-t border-primary/10"
       >
-        <span class="text-[11px] text-led/30 tracking-wide"
+        <span class="text-[11px] text-primary/30 tracking-wide"
           >updated {{ updatedAt }}</span
         >
         <BaseButton variant="ghost" size="sm" @click="store.clearPosition()">
@@ -120,7 +145,7 @@ function decodeWMO(code: number): { icon: string; label: string } {
   if (code === 1) return { icon: '🌤️', label: 'Mainly Clear' };
   if (code === 2) return { icon: '⛅', label: 'Partly Cloudy' };
   if (code === 3) return { icon: '☁️', label: 'Overcast' };
-  if (code <= 48) return { icon: '🌫️', label: 'Foggy' };
+  if (code <= 48) return { icon: '�', label: 'Foggy' };
   if (code <= 55) return { icon: '🌦️', label: 'Drizzle' };
   if (code <= 57) return { icon: '🌧️', label: 'Freezing Drizzle' };
   if (code <= 65) return { icon: '🌧️', label: 'Rain' };
@@ -166,5 +191,27 @@ const updatedAt = computed(() => {
   if (!weather.value?.current?.time) return '—';
   const d = new Date(weather.value.current.time);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+});
+
+// 48h forecast — one slot every 3h, skipping past hours
+const forecast48 = computed(() => {
+  if (!weather.value?.hourly) return [];
+  const { time, temperature_2m, weather_code, precipitation_probability } =
+    weather.value.hourly;
+  const now = Date.now();
+  return time
+    .map((t, i) => ({ t, i }))
+    .filter(({ t, i }) => new Date(t).getTime() >= now && i % 3 === 0)
+    .slice(0, 16)
+    .map(({ t, i }) => ({
+      time: t,
+      hour: new Date(t).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      icon: decodeWMO(weather_code[i]).icon,
+      temp: Math.round(temperature_2m[i]),
+      precip: precipitation_probability[i] ?? 0,
+    }));
 });
 </script>

@@ -2,7 +2,13 @@
 
 @theme {
   --color-primary: #3f1bb5;
-  --color-led: #3f1bb5;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @utility glow-sm {

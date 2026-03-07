@@ -1,11 +1,29 @@
 <template>
-  <div
-    class="relative w-dvw h-dvh overflow-hidden bg-gray-900 flex items-center justify-center"
-  >
+  <div class="relative w-dvw h-dvh overflow-hidden bg-gray-900">
     <!-- Background glow -->
     <div class="bg-glow" />
-    <OnboardingScreen v-if="!hasPosition" />
-    <WeatherWidget v-else />
+    <!-- Full-screen map placeholder (future) -->
+    <div class="absolute inset-0" />
+
+    <!-- Onboarding — centred -->
+    <div
+      v-if="!hasPosition"
+      class="absolute inset-0 flex items-center justify-center"
+    >
+      <OnboardingScreen />
+    </div>
+
+    <!-- HUD overlays -->
+    <template v-else>
+      <!-- Current weather — top right -->
+      <div class="absolute top-4 right-4">
+        <WeatherCurrent />
+      </div>
+      <!-- 48h forecast — bottom full width -->
+      <div class="absolute bottom-0 left-0 right-0">
+        <WeatherForecast />
+      </div>
+    </template>
   </div>
 </template>
 
@@ -13,7 +31,8 @@
 import { computed } from 'vue';
 import { useProfileStore } from '../stores/profile';
 import OnboardingScreen from '../components/OnboardingScreen.vue';
-import WeatherWidget from '../components/WeatherWidget.vue';
+import WeatherCurrent from '../components/WeatherCurrent.vue';
+import WeatherForecast from '../components/WeatherForecast.vue';
 
 const store = useProfileStore();
 const hasPosition = computed(() => store.hasPosition);

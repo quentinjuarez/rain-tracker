@@ -15,12 +15,21 @@ export type WeatherCurrent = {
   time: string;
 };
 
+export type WeatherHourly = {
+  time: string[];
+  temperature_2m: number[];
+  weather_code: number[];
+  precipitation_probability: number[];
+};
+
 export type WeatherData = {
   latitude: number;
   longitude: number;
   timezone: string;
   current: WeatherCurrent;
   current_units: Record<string, string>;
+  hourly: WeatherHourly;
+  hourly_units: Record<string, string>;
 };
 
 export type GeoLocation = {

@@ -1,11 +1,11 @@
 <template>
   <div
-    class="flex flex-col items-center justify-center h-full gap-6 text-led font-mono px-6"
+    class="flex flex-col items-center justify-center h-full gap-6 text-primary font-mono px-6"
   >
     <h1 class="text-2xl font-bold uppercase tracking-widest glow-sm">
       Rain Tracker
     </h1>
-    <p class="text-led/70 text-sm text-center max-w-sm">
+    <p class="text-primary/70 text-sm text-center max-w-sm">
       To get started, please provide your location. You can either use your GPS
       location or enter it manually in various formats.
     </p>
@@ -27,11 +27,11 @@
 
       <!-- Separator -->
       <div
-        class="flex items-center gap-3 text-led/40 text-[11px] uppercase tracking-widest"
+        class="flex items-center gap-3 text-primary/40 text-[11px] uppercase tracking-widest"
       >
-        <span class="flex-1 h-px bg-led/20" />
+        <span class="flex-1 h-px bg-primary/20" />
         or enter manually
-        <span class="flex-1 h-px bg-led/20" />
+        <span class="flex-1 h-px bg-primary/20" />
       </div>
 
       <!-- Secondary: manual input -->
@@ -58,9 +58,9 @@
         Confirm location
       </BaseButton>
 
-      <details class="text-led/50 text-[11px]">
+      <details class="text-primary/50 text-[11px]">
         <summary
-          class="cursor-pointer hover:text-led transition-colors tracking-widest text-center"
+          class="cursor-pointer hover:text-primary transition-colors tracking-widest text-center"
         >
           Supported formats
         </summary>
