@@ -4,10 +4,27 @@
   >
     <!-- Header -->
     <div class="flex items-center justify-between">
-      <span
-        class="text-[10px] uppercase tracking-widest text-white/40 font-semibold"
-        >Pluie 12h</span
-      >
+      <div class="flex items-center gap-1.5">
+        <span
+          class="text-[10px] uppercase tracking-widest text-white/40 font-semibold"
+          >Pluie 12h</span
+        >
+        <button
+          v-if="isDev"
+          class="text-[9px] px-1 py-0.5 rounded font-mono transition"
+          :class="
+            devMode
+              ? 'bg-amber-400/30 text-amber-300'
+              : 'bg-white/10 text-white/30 hover:text-white/60'
+          "
+          @click="
+            devMode = !devMode;
+            fetchHours();
+          "
+        >
+          DEV
+        </button>
+      </div>
       <div class="flex items-center gap-1.5">
         <button
           class="w-4 h-4 flex items-center justify-center text-white/40 hover:text-white/80 transition"
@@ -90,8 +107,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useProfileStore } from '../stores/profile';
+import { useRainSync } from '../composables/useRainSync';
 
 const store = useProfileStore();
+const isDev = import.meta.env.DEV; // compile-time, controls DEV button visibility
+const { devMode, activeIndex, playing, togglePlay, dispose } = useRainSync();
 
 interface HourEntry {
   time: number;
@@ -104,10 +124,7 @@ interface HourEntry {
 const hours = ref<HourEntry[]>([]);
 const loading = ref(false);
 const lastUpdated = ref('');
-const activeIndex = ref(0);
-const playing = ref(true);
 
-let playTimer: ReturnType<typeof setInterval> | null = null;
 let fetchTimer: ReturnType<typeof setInterval> | null = null;
 
 // ── Colors ───────────────────────────────────────────────────────────
@@ -122,31 +139,43 @@ function precipColor(mm: number, prob: number): string {
   return '#f97316';
 }
 
-// ── Autoplay ─────────────────────────────────────────────────────────
+// ── Mock data ────────────────────────────────────────────────────────
 
-function startPlay() {
-  if (playTimer) clearInterval(playTimer);
-  playTimer = setInterval(() => {
-    if (!hours.value.length) return;
-    activeIndex.value = (activeIndex.value + 1) % hours.value.length;
-  }, 1000);
-}
-
-function togglePlay() {
-  playing.value = !playing.value;
-  if (playing.value) {
-    startPlay();
-  } else {
-    if (playTimer) {
-      clearInterval(playTimer);
-      playTimer = null;
-    }
-  }
+function mockHours(): HourEntry[] {
+  // Simulates a rain event arriving in 2h, peaking, then fading
+  const pattern = [0, 0, 0.2, 0.8, 2.4, 5.1, 8.3, 4.7, 2.1, 0.6, 0.1, 0];
+  const probPattern = [5, 10, 25, 50, 75, 90, 95, 85, 65, 40, 15, 5];
+  const nowMs = Date.now();
+  // Round to next hour
+  const base = new Date(nowMs);
+  base.setMinutes(0, 0, 0);
+  base.setHours(base.getHours() + 1);
+  return pattern.map((mm, i) => {
+    const t = base.getTime() + i * 3_600_000;
+    const p = probPattern[i] ?? 0;
+    return {
+      time: t,
+      label: new Date(t).toLocaleTimeString('fr-FR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      probability: p,
+      precipitation: mm,
+      color: precipColor(mm, p),
+    };
+  });
 }
 
 // ── Fetch ────────────────────────────────────────────────────────────
 
 async function fetchHours() {
+  if (devMode.value) {
+    hours.value = mockHours();
+    if (activeIndex.value >= hours.value.length) activeIndex.value = 0;
+    lastUpdated.value = 'DEV';
+    return;
+  }
+
   const pos = store.position;
   if (!pos) return;
 
@@ -202,11 +231,10 @@ async function fetchHours() {
 onMounted(() => {
   fetchHours();
   fetchTimer = setInterval(fetchHours, 60_000);
-  startPlay();
 });
 
 onBeforeUnmount(() => {
-  if (playTimer) clearInterval(playTimer);
+  dispose();
   if (fetchTimer) clearInterval(fetchTimer);
 });
 </script>

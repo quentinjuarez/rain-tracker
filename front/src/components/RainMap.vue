@@ -10,35 +10,106 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useProfileStore } from '../stores/profile';
+import { useRainSync } from '../composables/useRainSync';
 
 type RadarFrame = { time: number; path: string };
 
 const store = useProfileStore();
+const { devMode, activeIndex, dispose } = useRainSync();
 
 const mapEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
 let rainLayer: L.TileLayer | null = null;
 
 const frames = ref<RadarFrame[]>([]);
-const currentIndex = ref(0);
-const playing = ref(false);
-let playTimer: ReturnType<typeof setInterval> | null = null;
-const currentLabel = ref('');
 
-// ── Helpers ──────────────────────────────────────────────────────────
+// ── DEV mock ─────────────────────────────────────────────────────────
 
-function formatTime(unix: number): string {
-  return new Date(unix * 1000).toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    day: 'numeric',
-    month: 'short',
+type MockFrame = {
+  time: number;
+  cells: { dlat: number; dlon: number; radius: number; mm: number }[];
+};
+let mockFrames: MockFrame[] = [];
+let mockCircles: L.Circle[] = [];
+
+// Wind direction: cells drift ~NE at ~30km/h → ~0.008° lat/frame, ~0.010° lon/frame (10-min frames)
+const DRIFT_LAT = 0.008;
+const DRIFT_LON = 0.01;
+
+function buildMockFrames(lat: number, lon: number) {
+  // 3 rain cells at t=0, each frame shifts them by the drift vector
+  const baseCells = [
+    { dlat: -0.04, dlon: -0.03, radius: 5500, mm: 6.2 },
+    { dlat: 0.0, dlon: 0.04, radius: 3800, mm: 2.8 },
+    { dlat: -0.02, dlon: 0.01, radius: 2800, mm: 1.1 },
+    { dlat: 0.03, dlon: -0.01, radius: 4200, mm: 4.5 },
+  ];
+  const now = Math.floor(Date.now() / 1000);
+  // 12 frames: 6 past (every 10 min) + 6 future
+  mockFrames = Array.from({ length: 12 }, (_, i) => {
+    const offset = i - 6; // -6 .. +5
+    return {
+      time: now + offset * 600,
+      cells: baseCells.map(({ dlat, dlon, radius, mm }) => ({
+        dlat: dlat + offset * DRIFT_LAT,
+        dlon: dlon + offset * DRIFT_LON,
+        radius,
+        // Intensity fades slightly toward edges of the time window
+        mm: mm * Math.max(0.3, 1 - Math.abs(offset) * 0.06),
+      })),
+    };
+  });
+  void lat;
+  void lon;
+}
+
+function clearMockCircles() {
+  mockCircles.forEach((c) => map?.removeLayer(c));
+  mockCircles = [];
+}
+
+function showMockFrame(index: number) {
+  if (!map) return;
+  clearMockCircles();
+  const pos = store.position;
+  if (!pos) return;
+  const f = mockFrames[index];
+  if (!f) return;
+  f.cells.forEach(({ dlat, dlon, radius, mm }) => {
+    const color =
+      mm < 0.5
+        ? '#93c5fd'
+        : mm < 2
+          ? '#3b82f6'
+          : mm < 5
+            ? '#06b6d4'
+            : mm < 10
+              ? '#eab308'
+              : '#f97316';
+    const opacity = Math.min(0.75, 0.15 + mm / 14);
+    const c = L.circle([pos.lat + dlat, pos.lon + dlon], {
+      radius,
+      color,
+      fillColor: color,
+      fillOpacity: opacity,
+      opacity: opacity * 0.35,
+      weight: 1,
+    }).addTo(map!);
+    mockCircles.push(c);
   });
 }
 
 // ── RainViewer ───────────────────────────────────────────────────────
 
 async function loadFrames() {
+  if (devMode.value) {
+    const pos = store.position;
+    if (!pos) return;
+    buildMockFrames(pos.lat, pos.lon);
+    frames.value = mockFrames.map((f) => ({ time: f.time, path: '' }));
+    showMockFrame(activeIndex.value);
+    return;
+  }
   try {
     const res = await fetch(
       'https://api.rainviewer.com/public/weather-maps.json',
@@ -51,8 +122,7 @@ async function loadFrames() {
       (f: { time: number; path: string }) => ({ time: f.time, path: f.path }),
     );
     frames.value = [...past, ...nowcast];
-    currentIndex.value = frames.value.length > 0 ? frames.value.length - 1 : 0;
-    showFrame(currentIndex.value);
+    showRadarFrame(activeIndex.value);
   } catch (e) {
     console.error('RainViewer fetch failed', e);
   }
@@ -62,16 +132,14 @@ function rainTileUrl(path: string): string {
   return `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`;
 }
 
-function showFrame(index: number) {
+function showRadarFrame(index: number) {
   if (!map || !frames.value.length) return;
   const frame = frames.value[index];
   if (!frame) return;
-
   if (rainLayer) {
     map.removeLayer(rainLayer);
     rainLayer = null;
   }
-
   rainLayer = L.tileLayer(rainTileUrl(frame.path), {
     opacity: 0.8,
     zIndex: 10,
@@ -81,22 +149,27 @@ function showFrame(index: number) {
     attribution: '<a href="https://rainviewer.com">RainViewer</a>',
   });
   rainLayer.addTo(map);
-  currentLabel.value = formatTime(frame.time);
 }
 
-// ── Playback ─────────────────────────────────────────────────────────
+// ── Watchers ─────────────────────────────────────────────────────────
 
-function togglePlay() {
-  playing.value = !playing.value;
-  if (playing.value) {
-    playTimer = setInterval(() => {
-      currentIndex.value = (currentIndex.value + 1) % frames.value.length;
-      showFrame(currentIndex.value);
-    }, 600);
-  } else {
-    if (playTimer) clearInterval(playTimer);
+// Advance displayed frame whenever the shared index changes
+watch(activeIndex, (i) => {
+  if (!frames.value.length) return;
+  if (devMode.value) showMockFrame(i);
+  else showRadarFrame(i);
+});
+
+// Reload when dev mode is toggled from the RainTimeline DEV button
+watch(devMode, () => {
+  clearMockCircles();
+  if (rainLayer && map) {
+    map.removeLayer(rainLayer);
+    rainLayer = null;
   }
-}
+  frames.value = [];
+  if (store.position) void loadFrames();
+});
 
 // ── Map init ─────────────────────────────────────────────────────────
 
@@ -147,7 +220,8 @@ watch(
 );
 
 onBeforeUnmount(() => {
-  if (playTimer) clearInterval(playTimer);
+  dispose();
+  clearMockCircles();
   if (map) {
     map.remove();
     map = null;
