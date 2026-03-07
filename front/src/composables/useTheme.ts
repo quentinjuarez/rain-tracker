@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 
 export type Theme = 'dark' | 'light';
 
@@ -20,6 +20,13 @@ function applyTheme(t: Theme) {
   html.classList.toggle('dark', t === 'dark');
 }
 
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'l' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    theme.value = theme.value === 'dark' ? 'light' : 'dark';
+  }
+}
+
 // Apply immediately (before first render)
 applyTheme(theme.value);
 
@@ -32,6 +39,14 @@ export function useTheme() {
   function toggleTheme() {
     theme.value = theme.value === 'dark' ? 'light' : 'dark';
   }
+
+  onMounted(() => {
+    window.addEventListener('keydown', onKeyDown);
+  });
+
+  onUnmounted(() => {
+    window.removeEventListener('keydown', onKeyDown);
+  });
 
   return {
     theme,
