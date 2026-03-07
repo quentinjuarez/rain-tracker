@@ -10,7 +10,7 @@
           >Pluie 12h</span
         >
         <button
-          v-if="isDev"
+          v-if="devMode"
           class="text-[9px] px-1 py-0.5 rounded font-mono transition"
           :class="
             devMode
@@ -82,23 +82,31 @@
           >
         </div>
 
-        <!-- Probability bar -->
+        <!-- Precipitation bar (mm, log-scaled) -->
         <div class="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
           <div
             class="h-full rounded-full transition-all duration-500"
-            :style="{ width: `${h.probability}%`, backgroundColor: h.color }"
+            :style="{
+              width: `${mmToWidthPct(h.precipitation)}%`,
+              backgroundColor: h.color,
+            }"
           />
         </div>
 
-        <!-- mm value -->
-        <span
-          class="text-[10px] font-mono w-9 text-right shrink-0 transition-colors duration-300"
-          :style="{
-            color: h.precipitation > 0 ? h.color : 'rgba(255,255,255,0.2)',
-          }"
-        >
-          {{ h.precipitation > 0 ? h.precipitation.toFixed(1) + 'mm' : '—' }}
-        </span>
+        <!-- mm value + probability -->
+        <div class="flex flex-col items-end w-9 shrink-0">
+          <span
+            class="text-[10px] font-mono leading-none transition-colors duration-300"
+            :style="{
+              color: h.precipitation > 0 ? h.color : 'rgba(255,255,255,0.2)',
+            }"
+          >
+            {{ h.precipitation > 0 ? h.precipitation.toFixed(1) + 'mm' : '—' }}
+          </span>
+          <span class="text-[9px] font-mono leading-none text-white/25">
+            {{ h.probability }}%
+          </span>
+        </div>
       </div>
     </div>
 
@@ -128,14 +136,13 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useProfileStore } from '../stores/profile';
 import { useRainSync } from '../composables/useRainSync';
-import { mmToColor, RAIN_SCALE } from '../utils/rainScale';
+import { mmToColor, mmToWidthPct, RAIN_SCALE } from '../utils/rainScale';
 import { buildMockHourEntries } from '../utils/mockWeather';
 
 // alias so Vue template analyzer and Pylance both see it used
 const rainScale = RAIN_SCALE;
 
 const store = useProfileStore();
-const isDev = import.meta.env.DEV; // compile-time, controls DEV button visibility
 const { devMode, activeIndex, playing, togglePlay, dispose } = useRainSync();
 
 interface HourEntry {

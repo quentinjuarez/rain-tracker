@@ -44,3 +44,13 @@ export function mmToRgb(mm: number): [number, number, number] {
   }
   return RAIN_SCALE[0]?.rgb ?? [148, 163, 184];
 }
+
+/**
+ * Maps mm to a 0-100 bar-width percentage using a log scale anchored on
+ * the RAIN_SCALE thresholds: 0.1mm≈7%, 0.5mm≈18%, 2mm≈33%,
+ * 5mm≈53%, 10mm≈72%, 20mm=100%.
+ */
+export function mmToWidthPct(mm: number): number {
+  if (mm <= 0) return 0;
+  return Math.min(100, (Math.log(mm + 1) / Math.log(21)) * 100);
+}

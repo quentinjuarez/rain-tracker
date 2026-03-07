@@ -5,7 +5,7 @@ import { ref, type Ref } from 'vue';
 export const FRAME_COUNT = 12;
 const FRAME_INTERVAL_MS = 800;
 
-const devMode: Ref<boolean> = ref(import.meta.env.DEV as boolean);
+const devMode: Ref<boolean> = ref(false);
 const activeIndex: Ref<number> = ref(0);
 const playing: Ref<boolean> = ref(true);
 
