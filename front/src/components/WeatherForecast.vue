@@ -92,8 +92,12 @@ const forecast48 = computed(() => {
 
   return time
     .map((t, i) => ({ t, i }))
-    .filter(({ i }) => i >= Math.max(firstIdx, 0) && i % 2 === 0)
-    .slice(0, 24)
+    .filter(({ t, i }) => {
+      if (i < Math.max(firstIdx, 0)) return false;
+      const h = new Date(t).getHours();
+      return h >= 8; // skip 00:00–07:59
+    })
+    .slice(0, 48)
     .map(({ t, i }, idx) => ({
       time: t,
       hour: new Date(t).toLocaleTimeString([], {

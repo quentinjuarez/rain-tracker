@@ -1,9 +1,9 @@
 <template>
   <div class="relative w-dvw h-dvh overflow-hidden bg-gray-900">
-    <!-- Background glow -->
-    <div class="bg-glow" />
-    <!-- Full-screen map placeholder (future) -->
-    <div class="absolute inset-0" />
+    <!-- Full-screen rain map (background) -->
+    <div v-if="hasPosition" class="absolute inset-0">
+      <RainMap />
+    </div>
 
     <!-- Onboarding — centred -->
     <div
@@ -16,12 +16,12 @@
     <!-- HUD overlays -->
     <template v-else>
       <!-- Current weather — top right -->
-      <div class="absolute top-4 right-4">
+      <div class="absolute top-4 right-4 z-1000">
         <WeatherCurrent />
       </div>
       <!-- 48h forecast — bottom full width -->
-      <div class="absolute bottom-0 left-0 right-0">
-        <WeatherForecast />
+      <div class="absolute bottom-0 left-0 right-0 z-1000">
+        <!-- <WeatherForecast /> -->
       </div>
     </template>
   </div>
@@ -33,20 +33,8 @@ import { useProfileStore } from '../stores/profile';
 import OnboardingScreen from '../components/OnboardingScreen.vue';
 import WeatherCurrent from '../components/WeatherCurrent.vue';
 import WeatherForecast from '../components/WeatherForecast.vue';
+import RainMap from '../components/RainMap.vue';
 
 const store = useProfileStore();
 const hasPosition = computed(() => store.hasPosition);
 </script>
-
-<style scoped>
-.bg-glow {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    ellipse 60% 50% at 50% 50%,
-    color-mix(in srgb, var(--color-primary) 8%, transparent),
-    transparent 70%
-  );
-  pointer-events: none;
-}
-</style>
