@@ -1,5 +1,17 @@
 export type LocationMode = 'geo' | 'manual';
 
+export type RainProvider = 'rainviewer' | 'owm' | 'rainbow';
+
+/** Normalized bar for OWM / Rainbow timeline display */
+export interface RainBar {
+  /** Unix timestamp (seconds) */
+  time: number;
+  /** Raw precipitation value (mm/h for Rainbow, mm per 3 h for OWM) */
+  value: number;
+  /** Precipitation type – only present for Rainbow */
+  type?: string;
+}
+
 export type Position = {
   lat: number;
   lon: number;

@@ -14,7 +14,7 @@ import { useRainSync } from '../composables/useRainSync';
 import { mmToRgb } from '../utils/rainScale';
 
 const store = useProfileStore();
-const { devMode, activeIndex, radarFrames, mockMapFrames, dispose } =
+const { devMode, activeIndex, radarFrames, mockMapFrames, provider, dispose } =
   useRainSync();
 
 const mapEl = ref<HTMLElement | null>(null);
@@ -130,6 +130,10 @@ function rainTileUrl(path: string): string {
   return `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`;
 }
 
+function owmTileUrl(): string {
+  return `http://localhost:14001/rain/owm/tile/{z}/{x}/{y}`;
+}
+
 function showRadarFrame(index: number) {
   if (!map || !radarFrames.value.length) return;
   const frame = radarFrames.value[index];
@@ -149,7 +153,42 @@ function showRadarFrame(index: number) {
   rainLayer.addTo(map);
 }
 
+function showOwmLayer() {
+  if (!map) return;
+  if (rainLayer) {
+    map.removeLayer(rainLayer);
+    rainLayer = null;
+  }
+  rainLayer = L.tileLayer(owmTileUrl(), {
+    opacity: 0.75,
+    zIndex: 10,
+    maxZoom: 18,
+    attribution: '<a href="https://openweathermap.org">OpenWeatherMap</a>',
+  });
+  rainLayer.addTo(map);
+}
+
+function clearRainLayer() {
+  if (rainLayer && map) {
+    map.removeLayer(rainLayer);
+    rainLayer = null;
+  }
+  canvasLayer?.clear();
+}
+
 function showFrame(index: number) {
+  if (provider.value === 'owm') {
+    // OWM has a single static tile layer – only (re)add it if not already shown
+    if (!rainLayer) showOwmLayer();
+    return;
+  }
+  if (provider.value === 'rainbow') {
+    // Rainbow has no tile layer – only show the canvas mock in dev mode
+    clearRainLayer();
+    if (devMode.value) showMockFrame(index % (mockMapFrames.value.length || 1));
+    return;
+  }
+  // RainViewer
   if (!radarFrames.value.length) return;
   const i = index % radarFrames.value.length;
   if (devMode.value) showMockFrame(i);
@@ -161,13 +200,16 @@ function showFrame(index: number) {
 // Advance displayed frame whenever the shared index changes
 watch(activeIndex, (i) => showFrame(i));
 
-// Show latest frame when radarFrames are loaded/updated by useRainSync
+// Refresh RainViewer layer when frames are loaded/updated
 watch(radarFrames, () => {
-  if (rainLayer && map) {
-    map.removeLayer(rainLayer);
-    rainLayer = null;
-  }
-  canvasLayer?.clear();
+  if (provider.value !== 'rainviewer') return;
+  clearRainLayer();
+  showFrame(activeIndex.value);
+});
+
+// Re-init the tile layer when the user switches provider
+watch(provider, () => {
+  clearRainLayer();
   showFrame(activeIndex.value);
 });
 
