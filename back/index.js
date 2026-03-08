@@ -51,7 +51,6 @@ app.use((_req, res, next) => {
 });
 
 const PORT_NUM = Number(PORT);
-const DISABLED_CACHE = true;
 
 // Simple in-memory cache - { data, expiresAt }
 const cache = new Map();
@@ -60,7 +59,7 @@ function setCache(key, data, ttlSeconds = 30) {
   cache.set(key, { data, expiresAt: Date.now() + ttlSeconds * 1000 });
 }
 function getCache(key) {
-  if (DISABLED_CACHE) return null;
+  if (process.env.DISABLED_CACHE === 'true') return null;
 
   const e = cache.get(key);
   if (!e) return null;

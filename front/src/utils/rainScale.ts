@@ -1,7 +1,3 @@
-// ── Rain intensity color scale ────────────────────────────────────────────────
-// Based on standard meteorological radar conventions:
-// light drizzle (sky) → light rain (blue) → moderate (blue) → heavy (cyan) → very heavy (amber) → extreme (red)
-
 export interface RainBand {
   /** Lower bound in mm (inclusive) */
   threshold: number;
