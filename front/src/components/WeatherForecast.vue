@@ -1,6 +1,6 @@
 <template>
   <div class="w-full px-4 pb-4">
-    <div class="rounded-2xl border border-white/10 backdrop-blur-sm px-4 py-3">
+    <BaseCard class="px-4 py-3">
       <!-- Loading skeleton -->
       <div v-if="loading && !weather" class="flex gap-3">
         <div
@@ -13,10 +13,10 @@
       <template v-else-if="weather">
         <!-- Header row -->
         <div class="flex items-center justify-between mb-2">
-          <p class="text-[9px] uppercase tracking-widest text-white/30">
+          <p class="text-[9px] uppercase tracking-widest text-white/40">
             48h forecast
           </p>
-          <span class="text-[9px] text-white/20 tracking-wide">{{
+          <span class="text-[9px] text-white/25 tracking-wide">{{
             timezone
           }}</span>
         </div>
@@ -27,7 +27,7 @@
             :key="slot.time"
             class="flex flex-col items-center gap-1 min-w-[52px] py-2 px-1 rounded-xl shrink-0 transition-colors"
             :class="
-              slot.isNow ? 'bg-white/12 ring-1 ring-white/15' : 'bg-white/5'
+              slot.isNow ? 'bg-white/10 ring-1 ring-white/10' : 'bg-white/5'
             "
           >
             <span
@@ -63,7 +63,7 @@
           </div>
         </div>
       </template>
-    </div>
+    </BaseCard>
   </div>
 </template>
 
@@ -71,6 +71,7 @@
 import { computed } from 'vue';
 import { useWeather } from '../composables/useWeather';
 import { decodeWMO } from '../utils/weather';
+import BaseCard from './BaseCard.vue';
 
 const { weather, loading } = useWeather();
 

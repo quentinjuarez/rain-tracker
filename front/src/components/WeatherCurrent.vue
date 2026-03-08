@@ -1,7 +1,5 @@
 <template>
-  <div
-    class="flex flex-col gap-3 p-4 w-[min(280px,90vw)] rounded-2xl border border-white/10 backdrop-blur-sm"
-  >
+  <BaseCard class="flex flex-col gap-3 p-4 w-[min(280px,90vw)]">
     <!-- Loading skeleton -->
     <template v-if="loading && !weather">
       <div class="h-4 w-2/5 rounded-lg bg-white/10 animate-pulse" />
@@ -15,11 +13,11 @@
         <div
           class="flex items-center gap-1.5 text-xs text-white/50 tracking-wide"
         >
-          <span class="text-white/60">⌖</span>
-          <span class="text-white/70">{{ geo?.city ?? '—' }}</span>
+          <span class="text-white/50">⌖</span>
+          <span class="text-white/80">{{ geo?.city ?? '—' }}</span>
           <span
             v-if="geo?.country"
-            class="text-[9px] border border-white/15 rounded px-1 text-white/35 leading-snug"
+            class="text-[9px] border border-white/15 rounded px-1 text-white/40 leading-snug"
           >
             {{ geo.country }}
           </span>
@@ -49,12 +47,12 @@
       </div>
 
       <!-- Condition -->
-      <p class="text-[10px] uppercase tracking-widest text-white/35 -mt-1">
+      <p class="text-[10px] uppercase tracking-widest text-white/40 -mt-1">
         {{ conditionLabel }}
       </p>
 
       <!-- Stats -->
-      <div class="grid grid-cols-3 gap-1 pt-2 border-t border-white/8">
+      <div class="grid grid-cols-3 gap-1 pt-2 border-t border-white/10">
         <div
           v-for="stat in stats"
           :key="stat.label"
@@ -63,10 +61,10 @@
           <span class="text-sm">
             {{ stat.icon }}
           </span>
-          <span class="text-[11px] font-semibold text-white/85">
+          <span class="text-[11px] font-semibold text-white/80">
             {{ stat.value }}
           </span>
-          <span class="text-[8px] uppercase tracking-widest text-white/30">
+          <span class="text-[8px] uppercase tracking-widest text-white/40">
             {{ stat.label }}
           </span>
         </div>
@@ -74,9 +72,9 @@
 
       <!-- Footer -->
       <div
-        class="flex items-center justify-between border-t border-white/8 pt-1.5"
+        class="flex items-center justify-between border-t border-white/10 pt-1.5"
       >
-        <span class="text-[9px] text-white/20 tracking-wide"
+        <span class="text-[9px] text-white/25 tracking-wide"
           >upd. {{ updatedAt }}</span
         >
         <BaseButton variant="ghost" size="sm" @click="store.clearPosition()">
@@ -91,7 +89,7 @@
       <p class="text-xs text-red-400/80 m-0">{{ error }}</p>
       <BaseButton variant="ghost" size="sm" @click="refresh">retry</BaseButton>
     </template>
-  </div>
+  </BaseCard>
 </template>
 
 <script setup lang="ts">
@@ -101,6 +99,7 @@ import { useWeather } from '../composables/useWeather';
 import { decodeWMO } from '../utils/weather';
 import SpinnerIcon from './SpinnerIcon.vue';
 import BaseButton from './BaseButton.vue';
+import BaseCard from './BaseCard.vue';
 
 const store = useProfileStore();
 const { weather, geo, loading, error, refresh } = useWeather();

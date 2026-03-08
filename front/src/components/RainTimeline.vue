@@ -1,7 +1,5 @@
 <template>
-  <div
-    class="flex flex-col gap-2 px-3 py-2.5 rounded-2xl backdrop-blur-sm border border-white/10 w-36"
-  >
+  <BaseCard class="flex flex-col gap-2 px-3 py-2.5 w-36">
     <!-- Header -->
     <div class="flex items-center justify-between">
       <span
@@ -51,7 +49,7 @@
         v-for="(f, i) in frames"
         :key="f.time"
         class="flex items-center gap-2 rounded-lg px-1 py-0.5 transition-colors duration-300"
-        :class="i === activeIndex ? 'bg-white/8' : ''"
+        :class="i === activeIndex ? 'bg-white/10' : ''"
       >
         <span
           class="inline-block w-1 h-1 rounded-full shrink-0 transition-all duration-300"
@@ -71,13 +69,14 @@
         </span>
       </div>
     </div>
-  </div>
+  </BaseCard>
 </template>
 
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue';
 import { useRainSync } from '../composables/useRainSync';
 import { locationTimezone } from '../composables/useWeather';
+import BaseCard from './BaseCard.vue';
 
 const { frames, activeIndex, loading, error, playing, togglePlay, dispose } =
   useRainSync();
