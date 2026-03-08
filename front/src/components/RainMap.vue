@@ -60,11 +60,21 @@ watch(frames, () => showFrame(activeIndex.value));
 function initMap(lat: number, lon: number) {
   if (!mapEl.value || map) return;
 
+  // Restrict to ~10 km radius to limit tile requests
+  const delta = 0.09; // ~10 km
+  const bounds = L.latLngBounds(
+    [lat - delta, lon - delta],
+    [lat + delta, lon + delta],
+  );
+
   map = L.map(mapEl.value, {
     center: [lat, lon],
-    zoom: 12,
+    zoom: 15,
+    minZoom: 11,
     zoomControl: false,
     attributionControl: true,
+    maxBounds: bounds,
+    maxBoundsViscosity: 1.0,
   });
 
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {

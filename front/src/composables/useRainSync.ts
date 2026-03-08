@@ -12,8 +12,8 @@ export interface RainFrame {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-// 25 frames: T+0, T+10min, ..., T+4h
-const FORECAST_OFFSETS = Array.from({ length: 25 }, (_, i) => i * 600);
+// 13 frames: T+0, T+10min, ..., T+2h
+const FORECAST_OFFSETS = Array.from({ length: 13 }, (_, i) => i * 600);
 const FRAME_INTERVAL_MS = 800;
 
 // ── Singleton state ───────────────────────────────────────────────────────────

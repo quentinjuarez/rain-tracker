@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex flex-col gap-2 px-3 py-2.5 rounded-2xl backdrop-blur border border-white/10 w-36"
+    class="flex flex-col gap-2 px-3 py-2.5 rounded-2xl backdrop-blur-sm border border-white/10 w-36"
   >
     <!-- Header -->
     <div class="flex items-center justify-between">

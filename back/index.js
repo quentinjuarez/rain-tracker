@@ -63,14 +63,18 @@ app.get('/weather', async (req, res) => {
       .json({ error: 'lat and lon query params are required' });
   }
 
-  const cacheKey = `weather:${Number(lat).toFixed(2)}:${Number(lon).toFixed(2)}`;
+  // Snap to ~10 km grid (0.1° ≈ 11 km) to maximise cache hits
+  const rLat = Number(lat).toFixed(1);
+  const rLon = Number(lon).toFixed(1);
+
+  const cacheKey = `weather:${rLat}:${rLon}`;
   const cached = getCache(cacheKey);
   if (cached) return res.json(cached);
 
   try {
     const url =
       `https://api.open-meteo.com/v1/forecast` +
-      `?latitude=${lat}&longitude=${lon}` +
+      `?latitude=${rLat}&longitude=${rLon}` +
       `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m` +
       `&hourly=temperature_2m,weather_code,precipitation_probability,precipitation` +
       `&past_hours=3&forecast_hours=48&wind_speed_unit=ms&timezone=auto`;
@@ -97,14 +101,18 @@ app.get('/geocode', async (req, res) => {
       .json({ error: 'lat and lon query params are required' });
   }
 
-  const cacheKey = `geocode:${Number(lat).toFixed(2)}:${Number(lon).toFixed(2)}`;
+  // Snap to ~10 km grid (0.1° ≈ 11 km) to maximise cache hits
+  const rLat = Number(lat).toFixed(1);
+  const rLon = Number(lon).toFixed(1);
+
+  const cacheKey = `geocode:${rLat}:${rLon}`;
   const cached = getCache(cacheKey);
   if (cached) return res.json(cached);
 
   try {
     const url =
       `https://nominatim.openstreetmap.org/reverse` +
-      `?lat=${lat}&lon=${lon}&format=json&zoom=10&addressdetails=1`;
+      `?lat=${rLat}&lon=${rLon}&format=json&zoom=10&addressdetails=1`;
 
     const response = await fetch(url, {
       headers: { 'User-Agent': 'rain-tracker/1.0' },
@@ -161,12 +169,20 @@ app.get(
   '/rain/rainbow/tile/:snapshot/:forecastTime/:z/:x/:y',
   async (req, res) => {
     const { snapshot, forecastTime, z, x, y } = req.params;
-    console.log(
-      `[rainbow] tile request: snapshot=${snapshot} forecastTime=${forecastTime} z=${z} x=${x} y=${y}`,
-    );
 
     const apiKey = process.env.RAINBOW_API_KEY;
     if (!apiKey) return res.status(503).send('RAINBOW_API_KEY not configured');
+
+    const cacheKey = `tile:${snapshot}:${forecastTime}:${z}:${x}:${y}`;
+    const cached = getCache(cacheKey);
+    if (cached) {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Cache-Control', 'public, max-age=600');
+      res.setHeader('X-Cache', 'HIT');
+      return res.send(cached);
+    }
 
     try {
       const url = `https://api.rainbow.ai/tiles/v1/precip/${snapshot}/${forecastTime}/${z}/${x}/${y}?color=0`;
@@ -181,12 +197,13 @@ app.get(
       const arrayBuffer = await response.arrayBuffer();
       const imageBuffer = Buffer.from(arrayBuffer);
 
+      setCache(cacheKey, imageBuffer, 600); // 10 min TTL
+
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Content-Type', 'image/png');
       res.setHeader('Cache-Control', 'public, max-age=600');
-
-      // 3. On transmet la tuile directement !
+      res.setHeader('X-Cache', 'MISS');
       res.send(imageBuffer);
     } catch (err) {
       console.error('[rainbow] tile error:', err);
