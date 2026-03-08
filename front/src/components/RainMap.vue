@@ -17,7 +17,7 @@ import { buildMockMapFrames, type MockMapFrame } from '../utils/mockWeather';
 type RadarFrame = { time: number; path: string };
 
 const store = useProfileStore();
-const { devMode, activeIndex, dispose } = useRainSync();
+const { devMode, activeIndex, radarFrameCount, dispose } = useRainSync();
 
 const mapEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
@@ -137,6 +137,8 @@ async function loadFrames() {
     if (!pos) return;
     mockFrames = buildMockMapFrames();
     frames.value = mockFrames.map((f) => ({ time: f.time, path: '' }));
+    radarFrameCount.value = frames.value.length;
+    if (activeIndex.value >= frames.value.length) activeIndex.value = 0;
     showMockFrame(activeIndex.value);
     return;
   }
@@ -152,6 +154,10 @@ async function loadFrames() {
       (f: { time: number; path: string }) => ({ time: f.time, path: f.path }),
     );
     frames.value = [...past, ...nowcast];
+    if (frames.value.length > 0) {
+      radarFrameCount.value = frames.value.length;
+      if (activeIndex.value >= frames.value.length) activeIndex.value = 0;
+    }
     showRadarFrame(activeIndex.value);
   } catch (e) {
     console.error('RainViewer fetch failed', e);
@@ -174,7 +180,7 @@ function showRadarFrame(index: number) {
     opacity: 0.8,
     zIndex: 10,
     minZoom: 0,
-    maxNativeZoom: 12,
+    maxNativeZoom: 7, // RainViewer max supported zoom is 7
     maxZoom: 18,
     attribution: '<a href="https://rainviewer.com">RainViewer</a>',
   });

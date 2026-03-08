@@ -10,7 +10,6 @@
           >Pluie 12h</span
         >
         <button
-          v-if="devMode"
           class="text-[9px] px-1 py-0.5 rounded font-mono transition"
           :class="
             devMode

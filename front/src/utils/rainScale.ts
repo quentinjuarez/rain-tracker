@@ -17,7 +17,7 @@ export const RAIN_SCALE: RainBand[] = [
   { threshold: 0.1, color: '#bae6fd', label: '0.1', rgb: [186, 230, 253] }, // sky-200   – drizzle
   { threshold: 0.5, color: '#38bdf8', label: '0.5', rgb: [56, 189, 248] }, // sky-400   – light
   { threshold: 2, color: '#3b82f6', label: '2', rgb: [59, 130, 246] }, // blue-500  – moderate
-  { threshold: 5, color: '#0891b2', label: '5', rgb: [8, 145, 178] }, // cyan-600  – heavy
+  { threshold: 5, color: '#3f1bb5', label: '5', rgb: [63, 27, 181] }, // violet-600  – heavy
   { threshold: 10, color: '#fbbf24', label: '10', rgb: [251, 191, 36] }, // amber-400 – very heavy
   { threshold: 20, color: '#ef4444', label: '20+', rgb: [239, 68, 68] }, // red-500   – extreme
 ];
