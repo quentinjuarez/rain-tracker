@@ -70,6 +70,7 @@
             new Date(f.time * 1000).toLocaleTimeString('fr-FR', {
               hour: '2-digit',
               minute: '2-digit',
+              timeZone: locationTimezone,
             })
           }}
         </span>
@@ -86,6 +87,7 @@ const {
   devMode,
   activeIndex,
   radarFrames,
+  locationTimezone,
   loading,
   playing,
   togglePlay,

@@ -22,6 +22,10 @@ const loading: Ref<boolean> = ref(false);
 const radarFrames: Ref<RadarFrame[]> = ref([]);
 // DEV mock map frames – used by RainMap to draw canvas cells
 const mockMapFrames: Ref<MockMapFrame[]> = ref([]);
+// Timezone of the selected location (e.g. "Europe/Paris") – from Open-Meteo
+const locationTimezone: Ref<string> = ref(
+  Intl.DateTimeFormat().resolvedOptions().timeZone,
+);
 
 let timer: ReturnType<typeof setInterval> | null = null;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -47,6 +51,20 @@ function stopSharedTimer() {
   if (consumerCount === 0 && refreshTimer) {
     clearInterval(refreshTimer);
     refreshTimer = null;
+  }
+}
+
+// ── Timezone fetch (Open-Meteo via backend) ──────────────────────────────────
+
+async function fetchLocationTimezone(lat: number, lon: number) {
+  try {
+    const res = await fetch(
+      `http://localhost:14001/weather?lat=${lat}&lon=${lon}`,
+    );
+    const data = await res.json();
+    if (data.timezone) locationTimezone.value = data.timezone;
+  } catch {
+    // keep whatever was already set
   }
 }
 
@@ -94,7 +112,10 @@ function _ensureWatcher() {
   watch(
     () => store.position,
     (pos) => {
-      if (pos) void fetchRadarFrames();
+      if (pos) {
+        void fetchRadarFrames();
+        void fetchLocationTimezone(pos.lat, pos.lon);
+      }
     },
     { immediate: true },
   );
@@ -126,6 +147,7 @@ export function useRainSync() {
     loading,
     radarFrames,
     mockMapFrames,
+    locationTimezone,
     togglePlay,
     dispose,
   };
