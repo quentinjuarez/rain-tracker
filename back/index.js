@@ -1,17 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 
 const app = express();
 const PORT = process.env.PORT || 14001;
 
 // ── Security ───────────────────────────────────────────────────────
 
-// Helmet: secure HTTP headers
 app.use(helmet());
-
-// Disable X-Powered-By (also done by helmet, belt & suspenders)
 app.disable('x-powered-by');
 
 // CORS: restrict origins in production
@@ -32,25 +28,6 @@ app.use(
     optionsSuccessStatus: 200,
   }),
 );
-
-// Rate limiting: 60 requests per minute per IP
-const limiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' },
-});
-app.use(limiter);
-
-// Disable client-side caching on all API responses (prevents 304s from
-// ETags/Last-Modified headers leaking through from upstream APIs)
-app.use((_req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store');
-  next();
-});
-
-const PORT_NUM = Number(PORT);
 
 // Simple in-memory cache - { data, expiresAt }
 const cache = new Map();
@@ -154,8 +131,7 @@ app.get('/geocode', async (req, res) => {
   }
 });
 
-// ── Rain: Rainbow Weather snapshot ────────────────────────────────
-// Returns the latest snapshot timestamp. Cached 10 min server-side.
+// ── Rainbow proxy ─────────────────────────────────────────────────
 
 app.get('/rain/rainbow/snapshot', async (req, res) => {
   const apiKey = process.env.RAINBOW_API_KEY;
@@ -167,7 +143,7 @@ app.get('/rain/rainbow/snapshot', async (req, res) => {
 
   try {
     const response = await fetch('https://api.rainbow.ai/tiles/v1/snapshot', {
-      headers: { Authorization: `Bearer ${apiKey}` },
+      headers: { 'Ocp-Apim-Subscription-Key': apiKey },
     });
     if (!response.ok)
       throw new Error(`Rainbow snapshot error: ${response.status}`);
@@ -181,22 +157,13 @@ app.get('/rain/rainbow/snapshot', async (req, res) => {
   }
 });
 
-// ── Rain: Rainbow Weather tile proxy ──────────────────────────────
-// Proxies PNG tiles – key stays server-side.
-// URL: /rain/rainbow/tile/:snapshot/:forecastTime/:z/:x/:y
-
-const tileLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 1200,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 app.get(
   '/rain/rainbow/tile/:snapshot/:forecastTime/:z/:x/:y',
-  tileLimiter,
   async (req, res) => {
     const { snapshot, forecastTime, z, x, y } = req.params;
+    console.log(
+      `[rainbow] tile request: snapshot=${snapshot} forecastTime=${forecastTime} z=${z} x=${x} y=${y}`,
+    );
 
     const apiKey = process.env.RAINBOW_API_KEY;
     if (!apiKey) return res.status(503).send('RAINBOW_API_KEY not configured');
@@ -204,16 +171,23 @@ app.get(
     try {
       const url = `https://api.rainbow.ai/tiles/v1/precip/${snapshot}/${forecastTime}/${z}/${x}/${y}?color=0`;
       const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${apiKey}` },
+        headers: { 'Ocp-Apim-Subscription-Key': apiKey },
       });
-      if (!response.ok)
-        return res.status(response.status).send('Tile fetch error');
 
-      // Tiles are immutable (keyed by snapshot+forecastTime) – safe to cache in browser
+      if (!response.ok) {
+        return res.status(response.status).send('Tile fetch error');
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const imageBuffer = Buffer.from(arrayBuffer);
+
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Content-Type', 'image/png');
       res.setHeader('Cache-Control', 'public, max-age=600');
-      const buffer = await response.arrayBuffer();
-      res.send(Buffer.from(buffer));
+
+      // 3. On transmet la tuile directement !
+      res.send(imageBuffer);
     } catch (err) {
       console.error('[rainbow] tile error:', err);
       res.status(500).send('Failed to proxy tile');
@@ -236,6 +210,8 @@ app.use((err, _req, res, _next) => {
   }
   res.status(500).json({ error: 'Internal server error' });
 });
+
+const PORT_NUM = Number(PORT);
 
 app.listen(PORT_NUM, () =>
   console.log(`server running on http://localhost:${PORT_NUM}`),

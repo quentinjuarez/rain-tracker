@@ -20,7 +20,7 @@ const FRAME_INTERVAL_MS = 800;
 
 const snapshot: Ref<number> = ref(0);
 const frames: Ref<RainFrame[]> = ref([]);
-const playing: Ref<boolean> = ref(true);
+const playing: Ref<boolean> = ref(false);
 const activeIndex: Ref<number> = ref(0);
 const loading: Ref<boolean> = ref(false);
 const error: Ref<string | null> = ref(null);
