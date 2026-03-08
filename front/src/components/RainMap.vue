@@ -12,18 +12,14 @@ import 'leaflet/dist/leaflet.css';
 import { useProfileStore } from '../stores/profile';
 import { useRainSync } from '../composables/useRainSync';
 import { mmToRgb } from '../utils/rainScale';
-import { buildMockMapFrames, type MockMapFrame } from '../utils/mockWeather';
-
-type RadarFrame = { time: number; path: string };
 
 const store = useProfileStore();
-const { devMode, activeIndex, radarFrameCount, dispose } = useRainSync();
+const { devMode, activeIndex, radarFrames, mockMapFrames, dispose } =
+  useRainSync();
 
 const mapEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
 let rainLayer: L.TileLayer | null = null;
-
-const frames = ref<RadarFrame[]>([]);
 
 // ── Canvas rain renderer ──────────────────────────────────────────────
 
@@ -110,14 +106,13 @@ class RainCanvasLayer extends L.Layer {
 
 // ── DEV mock ─────────────────────────────────────────────────────────
 
-let mockFrames: MockMapFrame[] = [];
 let canvasLayer: RainCanvasLayer | null = null;
 
 function showMockFrame(index: number) {
   if (!canvasLayer) return;
   const pos = store.position;
   if (!pos) return;
-  const f = mockFrames[index];
+  const f = mockMapFrames.value[index];
   if (!f) return;
   canvasLayer.update(
     f.cells.map(({ dlat, dlon, radius, mm }) => ({
@@ -129,48 +124,15 @@ function showMockFrame(index: number) {
   );
 }
 
-// ── RainViewer ───────────────────────────────────────────────────────
-
-async function loadFrames() {
-  if (devMode.value) {
-    const pos = store.position;
-    if (!pos) return;
-    mockFrames = buildMockMapFrames();
-    frames.value = mockFrames.map((f) => ({ time: f.time, path: '' }));
-    radarFrameCount.value = frames.value.length;
-    if (activeIndex.value >= frames.value.length) activeIndex.value = 0;
-    showMockFrame(activeIndex.value);
-    return;
-  }
-  try {
-    const res = await fetch(
-      'https://api.rainviewer.com/public/weather-maps.json',
-    );
-    const data = await res.json();
-    const past: RadarFrame[] = (data.radar?.past ?? []).map(
-      (f: { time: number; path: string }) => ({ time: f.time, path: f.path }),
-    );
-    const nowcast: RadarFrame[] = (data.radar?.nowcast ?? []).map(
-      (f: { time: number; path: string }) => ({ time: f.time, path: f.path }),
-    );
-    frames.value = [...past, ...nowcast];
-    if (frames.value.length > 0) {
-      radarFrameCount.value = frames.value.length;
-      if (activeIndex.value >= frames.value.length) activeIndex.value = 0;
-    }
-    showRadarFrame(activeIndex.value);
-  } catch (e) {
-    console.error('RainViewer fetch failed', e);
-  }
-}
+// ── RainViewer tile display ───────────────────────────────────────────
 
 function rainTileUrl(path: string): string {
   return `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`;
 }
 
 function showRadarFrame(index: number) {
-  if (!map || !frames.value.length) return;
-  const frame = frames.value[index];
+  if (!map || !radarFrames.value.length) return;
+  const frame = radarFrames.value[index];
   if (!frame) return;
   if (rainLayer) {
     map.removeLayer(rainLayer);
@@ -187,24 +149,26 @@ function showRadarFrame(index: number) {
   rainLayer.addTo(map);
 }
 
+function showFrame(index: number) {
+  if (!radarFrames.value.length) return;
+  const i = index % radarFrames.value.length;
+  if (devMode.value) showMockFrame(i);
+  else showRadarFrame(i);
+}
+
 // ── Watchers ─────────────────────────────────────────────────────────
 
 // Advance displayed frame whenever the shared index changes
-watch(activeIndex, (i) => {
-  if (!frames.value.length) return;
-  if (devMode.value) showMockFrame(i);
-  else showRadarFrame(i);
-});
+watch(activeIndex, (i) => showFrame(i));
 
-// Reload when dev mode is toggled from the RainTimeline DEV button
-watch(devMode, () => {
-  canvasLayer?.clear();
+// Show latest frame when radarFrames are loaded/updated by useRainSync
+watch(radarFrames, () => {
   if (rainLayer && map) {
     map.removeLayer(rainLayer);
     rainLayer = null;
   }
-  frames.value = [];
-  if (store.position) void loadFrames();
+  canvasLayer?.clear();
+  showFrame(activeIndex.value);
 });
 
 // ── Map init ─────────────────────────────────────────────────────────
@@ -239,7 +203,8 @@ function initMap(lat: number, lon: number) {
   canvasLayer = new RainCanvasLayer();
   canvasLayer.addTo(map);
 
-  loadFrames();
+  // Show current frame (data already fetched by useRainSync)
+  showFrame(activeIndex.value);
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────

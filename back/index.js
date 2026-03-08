@@ -87,7 +87,7 @@ app.get('/weather', async (req, res) => {
       `?latitude=${lat}&longitude=${lon}` +
       `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m` +
       `&hourly=temperature_2m,weather_code,precipitation_probability,precipitation` +
-      `&forecast_hours=48&wind_speed_unit=ms&timezone=auto`;
+      `&past_hours=3&forecast_hours=48&wind_speed_unit=ms&timezone=auto`;
 
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Open-Meteo error: ${response.status}`);
