@@ -1,6 +1,5 @@
 <template>
   <div class="relative w-full h-full">
-    <!-- Leaflet map container -->
     <div ref="mapEl" class="absolute inset-0" />
   </div>
 </template>
@@ -11,209 +10,52 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useProfileStore } from '../stores/profile';
 import { useRainSync } from '../composables/useRainSync';
-import { mmToRgb } from '../utils/rainScale';
 
 const store = useProfileStore();
-const { devMode, activeIndex, radarFrames, mockMapFrames, provider, dispose } =
-  useRainSync();
+const { snapshot, frames, activeIndex, dispose } = useRainSync();
 
 const mapEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
 let rainLayer: L.TileLayer | null = null;
 
-// ── Canvas rain renderer ──────────────────────────────────────────────
+// ── Tile URL ──────────────────────────────────────────────────────────
 
-type RainCell = { lat: number; lon: number; radius: number; mm: number };
-
-class RainCanvasLayer extends L.Layer {
-  private _canvas: HTMLCanvasElement | null = null;
-  private _cells: RainCell[] = [];
-  private _mapRef: L.Map | null = null;
-
-  onAdd(map: L.Map): this {
-    this._mapRef = map;
-    this._canvas = document.createElement('canvas');
-    this._canvas.style.cssText =
-      'position:absolute;top:0;left:0;pointer-events:none;';
-    map.getPanes().overlayPane!.appendChild(this._canvas);
-    map.on('moveend zoomend viewreset resize', this._redraw, this);
-    this._redraw();
-    return this;
-  }
-
-  onRemove(map: L.Map): this {
-    this._canvas?.remove();
-    this._canvas = null;
-    this._mapRef = null;
-    map.off('moveend zoomend viewreset resize', this._redraw, this);
-    return this;
-  }
-
-  update(cells: RainCell[]) {
-    this._cells = cells;
-    this._redraw();
-  }
-
-  clear() {
-    this._cells = [];
-    this._redraw();
-  }
-
-  private _metersToPixels(map: L.Map, meters: number, lat: number): number {
-    const p1 = map.latLngToLayerPoint([lat, 0]);
-    const p2 = map.latLngToLayerPoint([lat, 0.01]);
-    const degLen = Math.abs(p2.x - p1.x);
-    const metersPer001Deg = 0.01 * Math.cos((lat * Math.PI) / 180) * 111_320;
-    return (meters / metersPer001Deg) * degLen;
-  }
-
-  private _redraw() {
-    const map = this._mapRef;
-    const canvas = this._canvas;
-    if (!map || !canvas) return;
-
-    const size = map.getSize();
-    canvas.width = size.x;
-    canvas.height = size.y;
-
-    const origin = map.containerPointToLayerPoint([0, 0]);
-    L.DomUtil.setPosition(canvas, origin);
-
-    const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, size.x, size.y);
-
-    for (const cell of this._cells) {
-      const pt = map.latLngToLayerPoint([cell.lat, cell.lon]);
-      const rpx = this._metersToPixels(map, cell.radius, cell.lat);
-      const [r, g, b] = mmToRgb(cell.mm);
-      const alpha = Math.min(0.72, 0.12 + cell.mm / 14);
-
-      const grad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, rpx);
-      grad.addColorStop(0, `rgba(${r},${g},${b},${alpha.toFixed(3)})`);
-      grad.addColorStop(
-        0.45,
-        `rgba(${r},${g},${b},${(alpha * 0.55).toFixed(3)})`,
-      );
-      grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
-
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, rpx, 0, Math.PI * 2);
-      ctx.fillStyle = grad;
-      ctx.fill();
-    }
-  }
+function rainTileUrl(snap: number, forecastOffset: number): string {
+  return `http://localhost:14001/rain/rainbow/tile/${snap}/${forecastOffset}/{z}/{x}/{y}`;
 }
 
-// ── DEV mock ─────────────────────────────────────────────────────────
-
-let canvasLayer: RainCanvasLayer | null = null;
-
-function showMockFrame(index: number) {
-  if (!canvasLayer) return;
-  const pos = store.position;
-  if (!pos) return;
-  const f = mockMapFrames.value[index];
-  if (!f) return;
-  canvasLayer.update(
-    f.cells.map(({ dlat, dlon, radius, mm }) => ({
-      lat: pos.lat + dlat,
-      lon: pos.lon + dlon,
-      radius,
-      mm,
-    })),
-  );
-}
-
-// ── RainViewer tile display ───────────────────────────────────────────
-
-function rainTileUrl(path: string): string {
-  return `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`;
-}
-
-function owmTileUrl(): string {
-  return `http://localhost:14001/rain/owm/tile/{z}/{x}/{y}`;
-}
-
-function showRadarFrame(index: number) {
-  if (!map || !radarFrames.value.length) return;
-  const frame = radarFrames.value[index];
-  if (!frame) return;
-  if (rainLayer) {
-    map.removeLayer(rainLayer);
-    rainLayer = null;
-  }
-  rainLayer = L.tileLayer(rainTileUrl(frame.path), {
-    opacity: 0.8,
-    zIndex: 10,
-    minZoom: 0,
-    maxNativeZoom: 7, // RainViewer max supported zoom is 7
-    maxZoom: 18,
-    attribution: '<a href="https://rainviewer.com">RainViewer</a>',
-  });
-  rainLayer.addTo(map);
-}
-
-function showOwmLayer() {
-  if (!map) return;
-  if (rainLayer) {
-    map.removeLayer(rainLayer);
-    rainLayer = null;
-  }
-  rainLayer = L.tileLayer(owmTileUrl(), {
-    opacity: 0.75,
-    zIndex: 10,
-    maxZoom: 18,
-    attribution: '<a href="https://openweathermap.org">OpenWeatherMap</a>',
-  });
-  rainLayer.addTo(map);
-}
-
-function clearRainLayer() {
-  if (rainLayer && map) {
-    map.removeLayer(rainLayer);
-    rainLayer = null;
-  }
-  canvasLayer?.clear();
-}
+// ── Frame display ─────────────────────────────────────────────────────
 
 function showFrame(index: number) {
-  if (provider.value === 'owm') {
-    // OWM has a single static tile layer – only (re)add it if not already shown
-    if (!rainLayer) showOwmLayer();
-    return;
+  if (!map || !frames.value.length) return;
+  const frame = frames.value[index];
+  if (!frame) return;
+
+  if (rainLayer) {
+    map.removeLayer(rainLayer);
+    rainLayer = null;
   }
-  if (provider.value === 'rainbow') {
-    // Rainbow has no tile layer – only show the canvas mock in dev mode
-    clearRainLayer();
-    if (devMode.value) showMockFrame(index % (mockMapFrames.value.length || 1));
-    return;
-  }
-  // RainViewer
-  if (!radarFrames.value.length) return;
-  const i = index % radarFrames.value.length;
-  if (devMode.value) showMockFrame(i);
-  else showRadarFrame(i);
+
+  rainLayer = L.tileLayer(rainTileUrl(snapshot.value, frame.forecastOffset), {
+    opacity: 0.8,
+    zIndex: 10,
+    maxZoom: 18,
+    maxNativeZoom: 12,
+    attribution: '<a href="https://rainbow.ai">Rainbow Weather</a>',
+  });
+  rainLayer.addTo(map);
 }
 
-// ── Watchers ─────────────────────────────────────────────────────────
+// ── Watchers ──────────────────────────────────────────────────────────
 
-// Advance displayed frame whenever the shared index changes
 watch(activeIndex, (i) => showFrame(i));
 
-// Refresh RainViewer layer when frames are loaded/updated
-watch(radarFrames, () => {
-  if (provider.value !== 'rainviewer') return;
-  clearRainLayer();
-  showFrame(activeIndex.value);
-});
+// When a new snapshot is fetched, reload the current frame with new tiles
+watch(snapshot, () => showFrame(activeIndex.value));
 
-// Re-init the tile layer when the user switches provider
-watch(provider, () => {
-  clearRainLayer();
-  showFrame(activeIndex.value);
-});
+watch(frames, () => showFrame(activeIndex.value));
 
-// ── Map init ─────────────────────────────────────────────────────────
+// ── Map init ──────────────────────────────────────────────────────────
 
 function initMap(lat: number, lon: number) {
   if (!mapEl.value || map) return;
@@ -242,10 +84,6 @@ function initMap(lat: number, lon: number) {
     zIndexOffset: 100,
   }).addTo(map);
 
-  canvasLayer = new RainCanvasLayer();
-  canvasLayer.addTo(map);
-
-  // Show current frame (data already fetched by useRainSync)
   showFrame(activeIndex.value);
 }
 
