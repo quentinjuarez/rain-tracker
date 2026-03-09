@@ -10,7 +10,7 @@ withDefaults(
 <template>
   <svg
     :class="[
-      'animate-spin text-primary',
+      'animate-spin text-white',
       {
         'h-4 w-4': size === 'sm',
         'h-6 w-6': size === 'md',

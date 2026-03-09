@@ -1,5 +1,5 @@
 <template>
-  <div class="relative w-dvw h-dvh overflow-hidden bg-gray-900">
+  <div class="relative w-dvw h-dvh overflow-hidden bg-black">
     <!-- Full-screen rain map (background) -->
     <div v-if="hasPosition" class="absolute inset-0">
       <RainMap />

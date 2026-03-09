@@ -69,7 +69,7 @@ function initMap(lat: number, lon: number) {
 
   map = L.map(mapEl.value, {
     center: [lat, lon],
-    zoom: 15,
+    zoom: 11,
     minZoom: 11,
     zoomControl: false,
     attributionControl: true,
@@ -87,7 +87,7 @@ function initMap(lat: number, lon: number) {
   L.marker([lat, lon], {
     icon: L.divIcon({
       className: '',
-      html: `<div style="width:14px;height:14px;border-radius:50%;background:rgba(96,165,250,0.9);border:2px solid white;box-shadow:0 0 0 4px rgba(96,165,250,0.3)"></div>`,
+      html: `<div style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,0.9);border:2px solid white;box-shadow:0 0 0 4px rgba(255,255,255,0.3)"></div>`,
       iconSize: [14, 14],
       iconAnchor: [7, 7],
     }),

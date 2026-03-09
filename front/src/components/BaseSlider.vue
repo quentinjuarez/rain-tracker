@@ -2,7 +2,7 @@
   <div class="space-y-1">
     <div class="flex justify-between text-xs">
       <span>{{ label }}</span>
-      <span class="text-primary/70">{{ displayValue }}</span>
+      <span class="text-white/50">{{ displayValue }}</span>
     </div>
     <input
       type="range"
@@ -33,7 +33,7 @@ const model = defineModel<number>({ required: true });
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
-  background: color-mix(in srgb, var(--color-primary) 20%, transparent);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 2px;
   outline: none;
 }
@@ -43,17 +43,17 @@ const model = defineModel<number>({ required: true });
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: #fff;
   cursor: pointer;
-  box-shadow: 0 0 6px var(--color-primary);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
 }
 .slider::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: #fff;
   cursor: pointer;
   border: none;
-  box-shadow: 0 0 6px var(--color-primary);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
 }
 </style>

@@ -53,7 +53,7 @@
       >
         <span
           class="inline-block w-1 h-1 rounded-full shrink-0 transition-all duration-300"
-          :class="i === activeIndex ? 'bg-blue-400 scale-125' : 'bg-white/20'"
+          :class="i === activeIndex ? 'bg-white/80 scale-125' : 'bg-white/20'"
         />
         <span
           class="text-[11px] font-mono transition-colors duration-300"

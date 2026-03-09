@@ -15,7 +15,7 @@ const model = defineModel<string>();
   <input
     v-model="model"
     :class="[
-      'bg-black border border-primary/80 text-primary font-mono rounded-lg focus:border-primary focus:outline-none placeholder:text-primary/80',
+      'bg-black/80 border border-white/20 text-white font-mono rounded-lg focus:border-white/60 focus:outline-none placeholder:text-white/30',
       {
         'text-sm px-4 py-2.5': size === 'md',
         'text-xs px-3 py-1.5': size === 'sm',
